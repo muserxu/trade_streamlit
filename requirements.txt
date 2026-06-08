@@ -1,0 +1,6 @@
+# Dependencies for the Streamlit cloud dashboard (app.py).
+# Deliberately minimal — NO ib_async (no IBKR in the cloud), NO openpyxl
+# (the web app never writes Excel files).
+streamlit>=1.50
+pandas>=2.0.0
+yfinance>=0.2.28
