@@ -29,13 +29,30 @@ def load():
     cash_s = S.blended_momentum(prices, S.CASH, me[-1])
     if cash_s is not None:
         scores[S.CASH] = cash_s
+
+    latest_idx = len(daily) - 1
+    latest_row = daily.iloc[latest_idx]
+    effective_idx = me[-1] + 1
+    effective_date = prices.index[effective_idx] if effective_idx < len(prices) else None
+
+    def parse_assets_from_allocation(allocation):
+        if allocation == 'N/A':
+            return set()
+        return {part.split(' (')[0] for part in allocation.split(' / ')}
+
+    current_held_assets = parse_assets_from_allocation(latest_row['Allocation'])
+
     info = {
         'allocation': S.format_allocation(weights),
         'decided_on': prices.index[me[-1]],
+        'effective_on': effective_date,
         'through': prices.index[-1],
         'scores': scores,
         'weights': weights,
-        'ytd': daily.iloc[-1]['YTD_Return'],
+        'current_allocation': latest_row['Allocation'],
+        'current_date': latest_row['Date'],
+        'current_held_assets': current_held_assets,
+        'ytd': latest_row['YTD_Return'],
     }
     return daily, summary, info
 
@@ -54,21 +71,40 @@ with st.spinner("Fetching prices and computing…"):
 # ---- top metrics ----
 st.subheader("Current standing")
 m1, m2, m3 = st.columns(3)
-m1.metric("Target allocation", info['allocation'])
-m2.metric("2026 YTD", info['ytd'])
-m3.metric("Signal as of", info['decided_on'].strftime('%Y-%m-%d'),
-          help=f"prices through {info['through']:%Y-%m-%d}")
+m1.metric(
+    "Current held allocation",
+    info['current_allocation'],
+    help=f"Latest row shown in the tracker ({info['current_date']})"
+)
+m2.metric(
+    "Target allocation",
+    info['allocation'],
+    help=(
+        f"Based on the signal from {info['decided_on'].strftime('%Y-%m-%d')}"
+        + (f" and becomes effective on {info['effective_on'].strftime('%Y-%m-%d')}"
+           if info['effective_on'] is not None else '')
+    )
+)
+m3.metric("2026 YTD", info['ytd'])
+
+st.caption(
+    "The table shows what is currently held. The target allocation is the latest month-end signal, "
+    "and it takes effect on the next trading day."
+)
 
 # ---- momentum signal ----
 st.subheader("Momentum signal (blended 3/6/12-month, %)")
 scores = info['scores']
 mom_rows = []
-held = set(info['weights'].keys())
+held = info['current_held_assets']
 for a in S.UNIVERSE:
     s = scores.get(a)
     if s is not None:
-        mom_rows.append({'Asset': a, 'Momentum %': round(s, 1),
-                         'Held now': '✅' if a in held else ''})
+        mom_rows.append({
+            'Asset': a,
+            'Momentum %': round(s, 1),
+            'Held now': '✅' if a in held else ''
+        })
 mom_df = pd.DataFrame(mom_rows).sort_values('Momentum %', ascending=False)
 cash_score = scores.get(S.CASH)
 
@@ -76,6 +112,10 @@ cc1, cc2 = st.columns([2, 1])
 with cc1:
     st.dataframe(mom_df, hide_index=True, use_container_width=True)
     if cash_score is not None:
+        st.caption(
+            "The checkmark shows what is actually held on the latest daily row. "
+            "The momentum table is still sorted by signal, so it can differ from the current allocation."
+        )
         st.caption(f"Cash threshold (BIL): {cash_score:+.1f}%  — picks below this go to cash.")
 with cc2:
     st.bar_chart(mom_df.set_index('Asset')['Momentum %'])
