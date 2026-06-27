@@ -105,7 +105,11 @@ for a in S.UNIVERSE:
             'Momentum %': round(s, 1),
             'Held now': '✅' if a in held else ''
         })
-mom_df = pd.DataFrame(mom_rows).sort_values('Momentum %', ascending=False)
+
+mom_df = pd.DataFrame(mom_rows, columns=['Asset', 'Momentum %', 'Held now'])
+if not mom_df.empty:
+    mom_df = mom_df.sort_values('Momentum %', ascending=False)
+
 cash_score = scores.get(S.CASH)
 
 cc1, cc2 = st.columns([2, 1])
@@ -118,7 +122,10 @@ with cc1:
         )
         st.caption(f"Cash threshold (BIL): {cash_score:+.1f}%  — picks below this go to cash.")
 with cc2:
-    st.bar_chart(mom_df.set_index('Asset')['Momentum %'])
+    if not mom_df.empty:
+        st.bar_chart(mom_df.set_index('Asset')['Momentum %'])
+    else:
+        st.write("No momentum scores available yet.")
 
 # ---- yearly summary ----
 st.subheader("Yearly returns vs VOO buy & hold")
