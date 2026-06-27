@@ -55,6 +55,7 @@ def fetch_prices(symbols, start=START_DATE):
             s.index = s.index.tz_localize(None)
         data[sym] = s
     df = pd.DataFrame(data).sort_index()
+    df = df.dropna(how='all')
     return df
 
 
