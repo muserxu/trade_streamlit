@@ -146,6 +146,14 @@ daily_display = daily.iloc[::-1].reset_index(drop=True)   # newest first
 if not show_all:
     daily_display = daily_display.head(30)
     st.caption("Showing the 30 most recent rows. Tick the box for full history.")
+
+summary_cols = [
+    'Date', 'Day_of_Week', 'Signal_Top2', 'Allocation', 'Rebalance',
+    'Day_Return_Pct', 'YTD_Return'
+]
+other_cols = [c for c in daily_display.columns if c not in summary_cols]
+daily_display = daily_display[summary_cols + other_cols]
+
 st.dataframe(daily_display, hide_index=True, use_container_width=True)
 
 st.divider()
